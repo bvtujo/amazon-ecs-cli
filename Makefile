@@ -35,7 +35,7 @@ $(LOCAL_BINARY): $(SOURCES)
 test:
 	env -i PATH=$$PATH GOPATH=$$GOPATH GOROOT=$$GOROOT GOCACHE=$$GOCACHE go test -race -timeout=120s -v -cover ./ecs-cli/modules/...
 
-.PHONY: integ-test
+.PHONY: integ-test  
 integ-test: integ-test-build integ-test-run-with-coverage
 
 # Builds the ecs-cli.test binary.
@@ -58,7 +58,7 @@ integ-test-run:
 .PHONY: integ-test-run-with-coverage
 integ-test-run-with-coverage: integ-test-run
 	@echo "Code coverage"
-	$$GOPATH/bin/gocovmerge $$TMPDIR/coverage* > $$TMPDIR/all.out
+	gocovmerge $$TMPDIR/coverage* > $$TMPDIR/all.out
 	go tool cover -func=$$TMPDIR/all.out
 	rm $$TMPDIR/coverage* $$TMPDIR/all.out
 
