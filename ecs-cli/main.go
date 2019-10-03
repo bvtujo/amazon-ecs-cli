@@ -66,7 +66,7 @@ func main() {
 	app.Author = "Amazon Web Services"
 
 	composeFactory := factory.NewProjectFactory()
-
+	blach = "d" // This will not compile!!
 	app.Commands = []cli.Command{
 		configureCommand.ConfigureCommand(),
 		clusterCommand.UpCommand(),
