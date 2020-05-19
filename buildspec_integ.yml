@@ -6,9 +6,9 @@ phases:
       golang: 1.13
   pre_build:
     commands:
-      - mkdir -p /go/src/github.com/aws/amazon-ecs-cli
-      - cp -R . /go/src/github.com/aws/amazon-ecs-cli/
-      - cd /go/src/github.com/aws/amazon-ecs-cli/
+      - mkdir -p $GOPATH/src/github.com/aws/amazon-ecs-cli
+      - cp -R . $GOPATH/src/github.com/aws/amazon-ecs-cli/
+      - cd $GOPATH/src/github.com/aws/amazon-ecs-cli/
   build:
     commands:
       - make integ-test
