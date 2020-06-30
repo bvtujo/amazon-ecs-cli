@@ -35,12 +35,18 @@ function verifyAll {
     done
 }
 
+#usage: setupGPG
 function setupGPG {
     gpg --version
-    mkdir ~/.gnupg
-    echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
-    gpg --keyserver hkp://pool.sks-keyservers.net --recv BCE9D9A42D51784F || exit 1
+    if [ -z $1]
+    then
+        mkdir ~/.gnupg
+        echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
+        gpg --keyserver hkp://pool.sks-keyservers.net --recv BCE9D9A42D51784F || exit 1
+    else
+        gpg --import $1
+    fi
 }
 
-setupGPG
+setupGPG amazon-ecs-public-key.gpg
 retry verifyAll $1

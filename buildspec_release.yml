@@ -1,0 +1,65 @@
+version: 0.2
+phases:
+  pre_build:
+    commands:
+      # Set up profile for CICD publishing role
+      # by assuming s3 publisher role in the prod account
+      - >
+          CREDS=`AWS_STS_REGIONAL_ENDPOINTS=regional aws sts assume-role
+          --region $AWS_DEFAULT_REGION
+          --role-arn $PUBLISH_ROLE_ARN
+          --role-session-name $APP
+      - export AWS_ACCESS_KEY_ID=`echo $CREDS | jq -r .Credentials.AccessKeyId`,
+      - export AWS_SECRET_ACCESS_KEY=`echo $CREDS | jq -r .Credentials.SecretAccessKey`,
+      - export AWS_SESSION_TOKEN=`echo $CREDS | jq -r .Credentials.SessionToken`
+  build: 
+    commands:
+      - GIT_TAG=`git tag --points-at HEAD`,
+      - echo "GIT_TAG: $GIT_TAG",
+        -cd $CODEBUILD_SRC_DIR,
+            """
+if [ -n "$GIT_TAG" ] || [ -n "$RELEASE_NON_TAGGED" ]; then
+    GIT_COMMIT_ID=`git rev-parse HEAD`
+    echo 'Artifacts to publish to the release target:'
+    ls -lah $(dirname `head -1 ./$GIT_COMMIT_ID.manifest`)
+    for artifact in `cat ./$GIT_COMMIT_ID.manifest`
+    do
+        echo "artifact: $artifact"
+        bn="$(basename $artifact)"
+        echo "basename: $bn"
+        md5FileName="${artifact%.exe}"
+        echo "md5 file name: $md5FileName"
+        md5CopyName="$(basename $md5FileName)"
+        echo "md5 Destination path: $md5CopyName"
+        aws s3 cp $artifact "s3://$S3_BUCKET/$bn" $DRYRUN --acl=$OBJECT_ACL || exit 1
+        aws s3 cp $md5FileName.md5 "s3://$S3_BUCKET/$md5CopyName.md5" $DRYRUN --acl=$OBJECT_ACL || exit 1
+        aws s3 cp $artifact.asc "s3://$S3_BUCKET/$bn.asc" $DRYRUN --acl=$OBJECT_ACL || exit 1
+        echo "Copied artifact, md5, and asc for $bn to s3://$S3_BUCKET/"
+    done
+    # skip PGP signature verification if the pipeline is in dryrun mode
+    # or it's configured to release every single commit and the commit is not
+    # tagged
+    if [ -n "$DRYRUN" ] || [ -n "$RELEASE_NON_TAGGED" ] && [ -z "$GIT_TAG" ] ; then
+        echo "Dry run: skipping pgp verification"
+    else
+        ./scripts/verify.sh
+        echo "Verifying pgp signatures of published artifacts..."
+        echo "Installing ecs-cli gpg public key..."
+        /usr/bin/gpg --version
+        gpg --import $GPG_KEY_PATH
+        echo "Verifying PGP signatures..."
+        for artifact in `cat ./$GIT_COMMIT_ID.manifest`
+        do
+            bn="$(basename $artifact)"
+            echo "Downloading artifact and verifying signature for $bn"
+            wget -q https://$S3_ENDPOINT/$S3_BUCKET/$bn && status=$? && [ $status -eq 0 ] && echo "Downloaded artifact $bn" || exit 1
+            chmod +x $bn || exit 1
+            wget -q https://$S3_ENDPOINT/$S3_BUCKET/$bn.asc && status=$? && [ $status -eq 0 ] && echo "Downloaded artifact $bn.asc" || exit 1
+            gpg --verify $bn.asc $bn || exit 1
+        done
+        ./s
+    fi
+else
+    echo "Skipping the release because the latest commit is not tagged"
+fi
+                            """
