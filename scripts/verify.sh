@@ -47,6 +47,3 @@ function setupGPG {
         gpg --import $1
     fi
 }
-
-setupGPG amazon-ecs-public-key.gpg
-retry verifyAll $1
